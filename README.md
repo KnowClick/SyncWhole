@@ -4,6 +4,8 @@ Move data between jdbc compliant databases.
 
 ## Usage 
 
+[kc/syncwhole "0.0.1"]
+
 SyncWhole can be used as a library or as an independent application. 
 
 ### As a library
