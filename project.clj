@@ -1,8 +1,9 @@
-(defproject syncwhole "0.0.1"
+(defproject kc/syncwhole "0.0.1"
   :description "Move data between jdbc compliant databases"
   :url "https://github.com/KnowClick/SyncWhole"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :repositories [["clojars" {:sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/java.jdbc "0.4.2"]
                  [honeysql "0.6.2"]
