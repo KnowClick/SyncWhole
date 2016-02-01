@@ -111,8 +111,10 @@
 (defn move-mapping! [mapping]
   (let [source-maxes (get-maxes (-> mapping :source))
         target-maxes (get-maxes (-> mapping :target))
-        insert-fn (sw-insert/insert-fn mapping source-maxes target-maxes)
-        update-fn (sw-update/update-fn mapping source-maxes target-maxes)]
+        insert-fn (if (:insert mapping)
+                    (sw-insert/insert-fn mapping source-maxes target-maxes))
+        update-fn (if (:update mapping)
+                    (sw-update/update-fn mapping source-maxes target-maxes))]
     (dorun (->> [insert-fn update-fn]
                 (filter fn?)
                 (pmap
