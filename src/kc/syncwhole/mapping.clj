@@ -3,6 +3,7 @@
   the configuration format for describing how data should be moved."
   (:require [taoensso.timbre :as log]
             [hikari-cp.core :as conn-pool]
+            [kc.syncwhole.vendor :as v]
             [kc.syncwhole.jdbc :as sw-jdbc]))
 
 
@@ -37,7 +38,7 @@
 
 (defn add-quoting [m]
   (let [f (fn [s]
-            (assoc s :quoting (sw-jdbc/vendor-quoting-style (:db s))))]
+            (assoc s :quoting (v/quoting-style (:db s))))]
     (-> m
         (update :source f)
         (update :target f))))

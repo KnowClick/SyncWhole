@@ -17,6 +17,5 @@
   :profiles
   {:dev {:main kc.syncwhole.core}
    :prd [:base :system
-         {:aot :all
-          :main kc.syncwhole.app
+         {:main kc.syncwhole.app
           :uberjar-name "kc-syncwhole-standalone.jar"}]})
