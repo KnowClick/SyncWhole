@@ -1,4 +1,4 @@
-(defproject kc/syncwhole "0.0.3"
+(defproject kc/syncwhole "0.0.4"
   :description "Move data between jdbc compliant databases"
   :url "https://github.com/KnowClick/SyncWhole"
   :license {:name "Eclipse Public License"
