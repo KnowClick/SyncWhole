@@ -4,7 +4,7 @@ Move data between jdbc compliant databases.
 
 ## Usage 
 
-`[kc/syncwhole "0.0.2"]`
+`[kc/syncwhole "0.0.3"]`
 
 SyncWhole can be used as a library or as an independent application. 
 
