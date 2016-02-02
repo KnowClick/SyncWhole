@@ -39,7 +39,7 @@
   (let [row-transformer (-> mapping :update :row-fn)
         target-db-spec (-> mapping :target :db-spec)
         target-table (-> mapping :target :table :full-table-name)
-        target-quoting (v/quoting-fn (-> mapping :target :db-conf))
+        target-quoting (v/quoting-style (-> mapping :target :db-conf))
         result (sw-jdbc/batched-fetch
                 :query select-query
                 :db-spec (-> mapping :source :db-spec)
