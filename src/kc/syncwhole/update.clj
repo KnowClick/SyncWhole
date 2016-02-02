@@ -4,7 +4,8 @@
             [honeysql.core :as h]
             [honeysql.helpers :as hh]
             [kc.syncwhole.vendor :as v]
-            [kc.syncwhole.jdbc :as sw-jdbc]))
+            [kc.syncwhole.jdbc :as sw-jdbc]
+            [kc.syncwhole.mapping :as sw-mapping]))
 
 (defn update-fetched
   [mapping row target-db-spec target-table target-quoting]
@@ -24,8 +25,8 @@
     (try (jdbc/execute! target-db-spec update-query)
          (catch Exception e
            (log/warn
+            (sw-mapping/desc mapping) " - "
             (str "Attempt to update record " row
-                 " in table " target-table
                  " failed. Exception: " (.getMessage e)))
            (throw e)))))
 

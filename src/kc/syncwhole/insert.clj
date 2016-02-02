@@ -4,7 +4,8 @@
             [honeysql.core :as h]
             [honeysql.helpers :as hh]
             [kc.syncwhole.vendor :as v]
-            [kc.syncwhole.jdbc :as sw-jdbc]))
+            [kc.syncwhole.jdbc :as sw-jdbc]
+            [kc.syncwhole.mapping :as sw-mapping]))
 
 (defn insert-fetched
   [mapping row target-db-spec target-table target-quoting]
@@ -14,8 +15,8 @@
                      :entities target-quoting)
        (catch Exception e
          (log/warn
+          (sw-mapping/desc mapping) " - "
           (str "Attempt to insert record " row
-               " into table " target-table
                " failed. Exception: " (.getMessage e)))
          (throw e))))
 

@@ -3,6 +3,7 @@
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.pprint]
             [clojure.string :as string]
+            [clojure.core.async :as async]
             [taoensso.timbre :as log]
             [honeysql.core :as h]
             [honeysql.helpers :as hh]
@@ -74,37 +75,45 @@
 ;;; ---- initial data gathering ------------------------------------------------
 
 (defn get-timestamp-precisions [mapping]
-  (let [source-db-spec (-> mapping :source :db-spec)
-        source-db-conf (-> mapping :source :db-conf)
-        target-db-spec (-> mapping :target :db-spec)
-        target-db-conf (-> mapping :target :db-conf)
-        source #(v/timestamp-precision
-                 source-db-conf
-                 (-> mapping :source :table)
-                 %)
-        target #(v/timestamp-precision
-                 target-db-conf
-                 (-> mapping :target :table)
-                 %)]
-    {:source/created (source (-> mapping :source :table :column/created))
-     :source/updated (source (-> mapping :source :table :column/updated))
-     :target/created (target (-> mapping :target :table :column/created))
-     :target/updated (target (-> mapping :target :table :column/updated))}))
+  (try (let [source-db-spec (-> mapping :source :db-spec)
+             source-db-conf (-> mapping :source :db-conf)
+             target-db-spec (-> mapping :target :db-spec)
+             target-db-conf (-> mapping :target :db-conf)
+             source #(v/timestamp-precision
+                      source-db-conf
+                      (-> mapping :source :table)
+                      %)
+             target #(v/timestamp-precision
+                      target-db-conf
+                      (-> mapping :target :table)
+                      %)]
+         {:source/created (source (-> mapping :source :table :column/created))
+          :source/updated (source (-> mapping :source :table :column/updated))
+          :target/created (target (-> mapping :target :table :column/created))
+          :target/updated (target (-> mapping :target :table :column/updated))})
+       (catch Exception e
+         (log/error (sw-mapping/desc mapping)
+                    " - Error getting timestamp precisions")
+         (throw e))))
 
 (defn get-maxes [conf]
-  (let [col-keys #{:column/pk :column/created :column/updated}
-        cols (->> conf
-                  :table
-                  keys
-                  (filter #(some col-keys [%]))
-                  (map (fn [k] [k (-> conf :table k)]))
-                  (into {})
-                  (map (fn [[col-purpose col-name]]
-                         [(h/call :max col-name) col-purpose])))
-        q (-> (apply hh/select cols)
-              (hh/from (-> conf :table :full-table-name))
-              (h/format :quoting (-> conf :quoting)))]
-    (jdbc/query (-> conf :db-spec) q :result-set-fn first)))
+  (try
+    (let [col-keys #{:column/pk :column/created :column/updated}
+          cols (->> conf
+                    :table
+                    keys
+                    (filter #(some col-keys [%]))
+                    (map (fn [k] [k (-> conf :table k)]))
+                    (into {})
+                    (map (fn [[col-purpose col-name]]
+                           [(h/call :max col-name) col-purpose])))
+          q (-> (apply hh/select cols)
+                (hh/from (-> conf :table :full-table-name))
+                (h/format :quoting (-> conf :quoting)))]
+      (jdbc/query (-> conf :db-spec) q :result-set-fn first))
+    (catch Exception e
+      (log/error "Error getting maxes for conf:\n" (pprint conf))
+      (throw e))))
 
 ;;; ---- do things! ------------------------------------------------------------
 
@@ -114,12 +123,23 @@
         insert-fn (if (:insert mapping)
                     (sw-insert/insert-fn mapping source-maxes target-maxes))
         update-fn (if (:update mapping)
-                    (sw-update/update-fn mapping source-maxes target-maxes))]
-    (dorun (->> [insert-fn update-fn]
-                (filter fn?)
-                (pmap
-                 (fn [f]
-                   (f)))))))
+                    (sw-update/update-fn mapping source-maxes target-maxes))
+        ch (->> [[insert-fn "Inserting"] [update-fn "Updating"]]
+                (filter (comp fn? first))
+                (map
+                 (fn [[f name]]
+                   (async/thread
+                     (try (f)
+                          (catch Exception e
+                            (log/error (sw-mapping/desc mapping)
+                                       " - "
+                                       "Error " name ".")
+                            (throw e))
+                          (finally :done)))))
+                async/merge)]
+    (while (= :done (async/<!! ch))
+      :waiting)
+    :done))
 
 (defn expand-mapping [item conf]
   (-> item
@@ -174,9 +194,20 @@
   ;; :sequences is a vector of maps and vectors of maps.
   ;;   all maps can start running immediately.
   ;;   vectors of maps run sequentially; the first of each can start immediately.
-  ;;  therefore, every top level thing in :sequences can be run in parallel
-  (dorun (pmap #(move-group! % conf) (:sequences conf)))
+  ;;  therefore, every top level thing in :sequences can be run in parallel.
+  ;; Use core async to make it easy to make this function block while
+  ;; every sequence item is handled on its own thread.
+  (let [ch (async/merge
+            (map
+             (fn [g]
+               (async/thread
+                 (move-group! g conf)
+                 :done))
+             (:sequences conf)))]
+    (while (= :done (async/<!! ch))
+      :waiting))
   ;; clean up connection pools.
   ;; only needed in dev because the alternative is to keep creating new
   ;; connection pools until a db server runs out of available connections.
+  (log/debug "Sync Completed. Closing Datasources.")
   (sw-jdbc/cleanup-datasources))

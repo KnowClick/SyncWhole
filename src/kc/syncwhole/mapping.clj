@@ -73,3 +73,8 @@
 (defn stop-stateful-resources [m]
   (sw-jdbc/close-datasource (-> m :source :db-conf))
   (sw-jdbc/close-datasource (-> m :target :db-conf)))
+
+(defn desc [mapping]
+  (str (-> mapping :source :table :full-table-name)
+       " -> "
+       (-> mapping :target :table :full-table-name)))

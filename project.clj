@@ -6,6 +6,7 @@
   :repositories [["clojars" {:sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/java.jdbc "0.4.2"]
+                 [org.clojure/core.async "0.2.374"]
                  [honeysql "0.6.2"]
                  [com.taoensso/timbre "4.2.1"]
                  [org.postgresql/postgresql "9.4-1201-jdbc41"]
